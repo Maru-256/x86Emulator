@@ -21,7 +21,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	if err := copyByIndex(emu.memory, b, 0x7C00); err != nil {
+	if err := copyByIndex(emu.memory, b, int(emu.eip)); err != nil {
 		log.Fatalln(err)
 	}
 
@@ -34,7 +34,6 @@ func main() {
 			break
 		}
 		instructions[code](emu)
-		emu.dumpRegisters()
 		if emu.eip == 0x00 {
 			log.Println("end of program")
 			break

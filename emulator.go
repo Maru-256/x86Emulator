@@ -6,10 +6,8 @@ import (
 	"os"
 )
 
-type Register uint8
-
 const (
-	EAX Register = iota
+	EAX = iota
 	ECX
 	EDX
 	EBX
@@ -18,6 +16,13 @@ const (
 	ESI
 	EDI
 	registersCount
+)
+
+const (
+	CarryFlag    uint32 = 1
+	ZeroFlag     uint32 = 1 << 6
+	SignFlag     uint32 = 1 << 7
+	OverflowFlag uint32 = 1 << 11
 )
 
 var (
@@ -138,16 +143,74 @@ func (emu *Emulator) setRegister32(index uint8, val uint32) {
 }
 
 func (emu *Emulator) push32(val uint32) {
-	address := emu.getRegister32(uint8(ESP)) - 4
-	fmt.Printf("%x %x\n", address, val)
-	emu.setRegister32(uint8(ESP), address)
+	address := emu.getRegister32(ESP) - 4
+	emu.setRegister32(ESP, address)
 	emu.setMemory32(address, val)
 }
 
 func (emu *Emulator) pop32() uint32 {
-	address := emu.getRegister32(uint8(ESP))
+	address := emu.getRegister32(ESP)
 	mem := emu.getMemory32(address)
-	fmt.Printf("%x %x\n", address, mem)
-	emu.setRegister32(uint8(ESP), address+4)
+	emu.setRegister32(ESP, address+4)
 	return mem
+}
+
+func (emu *Emulator) updateEflagsSub(v1 uint32, v2 uint32) {
+	sign1 := v1 >> 31
+	sign2 := v2 >> 31
+	res := uint64(v1) - uint64(v2)
+	signr := uint32(res>>31) & 1
+
+	emu.setCarry(res>>32 != 0)
+	emu.setZero(res == 0)
+	emu.setSign(signr == 1)
+	emu.setOverflow(sign1 != sign2 && sign1 != signr)
+}
+
+func (emu *Emulator) setCarry(isCarry bool) {
+	if isCarry {
+		emu.eflags |= CarryFlag
+	} else {
+		emu.eflags &= ^CarryFlag
+	}
+}
+
+func (emu *Emulator) setZero(isZero bool) {
+	if isZero {
+		emu.eflags |= ZeroFlag
+	} else {
+		emu.eflags &= ^ZeroFlag
+	}
+}
+
+func (emu *Emulator) setSign(isSign bool) {
+	if isSign {
+		emu.eflags |= SignFlag
+	} else {
+		emu.eflags &= ^SignFlag
+	}
+}
+
+func (emu *Emulator) setOverflow(isOverflow bool) {
+	if isOverflow {
+		emu.eflags |= OverflowFlag
+	} else {
+		emu.eflags &= ^OverflowFlag
+	}
+}
+
+func (emu *Emulator) isCarry() bool {
+	return emu.eflags&CarryFlag != 0
+}
+
+func (emu *Emulator) isZero() bool {
+	return emu.eflags&ZeroFlag != 0
+}
+
+func (emu *Emulator) isSign() bool {
+	return emu.eflags&SignFlag != 0
+}
+
+func (emu *Emulator) isOverflow() bool {
+	return emu.eflags&OverflowFlag != 0
 }

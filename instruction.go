@@ -19,15 +19,19 @@ func init() {
 		instructions[0x58+i] = popR32
 	}
 
+	instructions[0x68] = pushImm32
+	instructions[0x6A] = pushImm8
+	instructions[0x83] = code83
+	instructions[0x89] = movRm32R32
+	instructions[0x8B] = movR32Rm32
+
 	for i := 0; i < 8; i++ {
 		instructions[0xB8+i] = movR32Imm32
 	}
 
-	instructions[0x83] = code83
-	instructions[0x89] = movRm32R32
-	instructions[0x8B] = movR32Rm32
 	instructions[0xC3] = ret
 	instructions[0xC7] = movRm32Imm32
+	instructions[0xC9] = leave
 	instructions[0xE8] = callRel32
 	instructions[0xE9] = nearJump
 	instructions[0xEB] = shortJump
@@ -81,24 +85,36 @@ func addRm32R32(emu *Emulator) {
 	emu.setRm32(modrm, rm32+r32)
 }
 
+func addRm32Imm8(emu *Emulator, modrm *ModRM) {
+	rm32 := emu.getRm32(modrm)
+	imm8 := emu.getSignCode8(0)
+	emu.eip++
+	emu.setRm32(modrm, rm32+uint32(imm8))
+}
+
 func code83(emu *Emulator) {
 	emu.eip++
 	modrm := ParseModRM(emu)
 
 	switch modrm.opcode {
+	case 0:
+		addRm32Imm8(emu, modrm)
 	case 5:
-		subRm32R32(emu, modrm)
+		subRm32Imm8(emu, modrm)
+	case 7:
+		cmpRm32Imm8(emu, modrm)
 	default:
 		log.Printf("not implemented: 83 /%d\n", modrm.opcode)
 		os.Exit(1)
 	}
 }
 
-func subRm32R32(emu *Emulator, modrm *ModRM) {
+func subRm32Imm8(emu *Emulator, modrm *ModRM) {
 	rm32 := emu.getRm32(modrm)
 	imm8 := uint32(emu.getSignCode8(0))
 	emu.eip++
 	emu.setRm32(modrm, rm32-imm8)
+	emu.updateEflagsSub(rm32, imm8)
 }
 
 func codeFF(emu *Emulator) {
@@ -125,6 +141,19 @@ func pushR32(emu *Emulator) {
 	emu.eip++
 }
 
+func pushImm32(emu *Emulator) {
+	val := emu.getCode32(1)
+	emu.push32(val)
+	emu.eip += 5
+}
+
+func pushImm8(emu *Emulator) {
+	val := emu.getCode8(1)
+	emu.push32(uint32(val))
+	emu.eip += 2
+
+}
+
 func popR32(emu *Emulator) {
 	reg := emu.getCode8(0) - 0x58
 	emu.setRegister32(reg, emu.pop32())
@@ -147,3 +176,147 @@ func leave(emu *Emulator) {
 	emu.setRegister32(uint8(EBP), emu.pop32())
 	emu.eip++
 }
+
+func cmpR32Rm32(emu *Emulator) {
+	emu.eip++
+	modrm := ParseModRM(emu)
+	r32 := emu.getRegister32(modrm.regIndex)
+	rm32 := emu.getRm32(modrm)
+	emu.updateEflagsSub(r32, rm32)
+}
+
+func cmpRm32Imm8(emu *Emulator, modrm *ModRM) {
+	rm32 := emu.getRm32(modrm)
+	imm8 := uint32(emu.getCode8(0))
+	emu.eip++
+	emu.updateEflagsSub(rm32, imm8)
+}
+
+func jc(emu *Emulator) {
+	var diff uint32
+	if emu.isCarry() {
+		diff = uint32(emu.getCode8(1))
+	} else {
+		diff = 0
+	}
+	emu.eip += diff + 2
+}
+
+func jz(emu *Emulator) {
+	var diff uint32
+	if emu.isZero() {
+		diff = uint32(emu.getCode8(1))
+	} else {
+		diff = 0
+	}
+	emu.eip += diff + 2
+}
+
+func js(emu *Emulator) {
+	var diff uint32
+	if emu.isSign() {
+		diff = uint32(emu.getCode8(1))
+	} else {
+		diff = 0
+	}
+	emu.eip += diff + 2
+}
+
+func jo(emu *Emulator) {
+	var diff uint32
+	if emu.isOverflow() {
+		diff = uint32(emu.getCode8(1))
+	} else {
+		diff = 0
+	}
+	emu.eip += diff + 2
+}
+
+func jl(emu *Emulator) {
+	var diff uint32
+	if emu.isSign() != emu.isOverflow() {
+		diff = uint32(emu.getCode8(1))
+	} else {
+		diff = 0
+	}
+	emu.eip += diff + 2
+}
+
+func jle(emu *Emulator) {
+	var diff uint32
+	if emu.isZero() || (emu.isSign() != emu.isOverflow()) {
+		diff = uint32(emu.getCode8(1))
+	} else {
+		diff = 0
+	}
+	emu.eip += diff + 2
+}
+
+func jnc(emu *Emulator) {
+	var diff uint32
+	if emu.isCarry() {
+		diff = 0
+	} else {
+		diff = uint32(emu.getCode8(1))
+	}
+	emu.eip += diff + 2
+}
+
+func jnz(emu *Emulator) {
+	var diff uint32
+	if emu.isZero() {
+		diff = 0
+	} else {
+		diff = uint32(emu.getCode8(1))
+	}
+	emu.eip += diff + 2
+}
+
+func jns(emu *Emulator) {
+	var diff uint32
+	if emu.isSign() {
+		diff = 0
+	} else {
+		diff = uint32(emu.getCode8(1))
+	}
+	emu.eip += diff + 2
+}
+
+func jno(emu *Emulator) {
+	var diff uint32
+	if emu.isOverflow() {
+		diff = 0
+	} else {
+		diff = uint32(emu.getCode8(1))
+	}
+	emu.eip += diff + 2
+}
+
+/*
+func define(flag string) func(*Emulator) {
+	return func(emu *Emulator) {
+		var diff uint32
+		isFlag := func() func() bool {
+			switch flag {
+			case "Carry":
+				return emu.isCarry
+			case "Sign":
+				return emu.isSign
+			case "Zero":
+				return emu.isZero
+			case "Overflow":
+				return emu.isOverflow
+			default:
+				return nil
+			}
+		}()
+
+		if isFlag() {
+			diff = uint32(emu.getCode8(1))
+		} else {
+			diff = 0
+		}
+		emu.eip += diff + 2
+	}
+}
+*/
