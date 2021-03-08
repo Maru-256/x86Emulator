@@ -14,6 +14,8 @@ type instructionFunc func(emu *Emulator)
 func init() {
 	instructions[0x01] = addRm32R32
 
+	instructions[0x3B] = cmpR32Rm32
+
 	for i := 0; i < 8; i++ {
 		instructions[0x50+i] = pushR32
 		instructions[0x58+i] = popR32
@@ -21,6 +23,18 @@ func init() {
 
 	instructions[0x68] = pushImm32
 	instructions[0x6A] = pushImm8
+
+	instructions[0x70] = jo
+	instructions[0x71] = jno
+	instructions[0x72] = jc
+	instructions[0x73] = jnc
+	instructions[0x74] = jz
+	instructions[0x75] = jnz
+	instructions[0x78] = js
+	instructions[0x79] = jns
+	instructions[0x7C] = jl
+	instructions[0x7E] = jle
+
 	instructions[0x83] = code83
 	instructions[0x89] = movRm32R32
 	instructions[0x8B] = movR32Rm32
@@ -32,6 +46,7 @@ func init() {
 	instructions[0xC3] = ret
 	instructions[0xC7] = movRm32Imm32
 	instructions[0xC9] = leave
+
 	instructions[0xE8] = callRel32
 	instructions[0xE9] = nearJump
 	instructions[0xEB] = shortJump
@@ -195,7 +210,7 @@ func cmpRm32Imm8(emu *Emulator, modrm *ModRM) {
 func jc(emu *Emulator) {
 	var diff uint32
 	if emu.isCarry() {
-		diff = uint32(emu.getCode8(1))
+		diff = uint32(emu.getSignCode8(1))
 	} else {
 		diff = 0
 	}
@@ -205,7 +220,7 @@ func jc(emu *Emulator) {
 func jz(emu *Emulator) {
 	var diff uint32
 	if emu.isZero() {
-		diff = uint32(emu.getCode8(1))
+		diff = uint32(emu.getSignCode8(1))
 	} else {
 		diff = 0
 	}
@@ -215,7 +230,7 @@ func jz(emu *Emulator) {
 func js(emu *Emulator) {
 	var diff uint32
 	if emu.isSign() {
-		diff = uint32(emu.getCode8(1))
+		diff = uint32(emu.getSignCode8(1))
 	} else {
 		diff = 0
 	}
@@ -225,7 +240,7 @@ func js(emu *Emulator) {
 func jo(emu *Emulator) {
 	var diff uint32
 	if emu.isOverflow() {
-		diff = uint32(emu.getCode8(1))
+		diff = uint32(emu.getSignCode8(1))
 	} else {
 		diff = 0
 	}
@@ -235,7 +250,7 @@ func jo(emu *Emulator) {
 func jl(emu *Emulator) {
 	var diff uint32
 	if emu.isSign() != emu.isOverflow() {
-		diff = uint32(emu.getCode8(1))
+		diff = uint32(emu.getSignCode8(1))
 	} else {
 		diff = 0
 	}
@@ -245,7 +260,7 @@ func jl(emu *Emulator) {
 func jle(emu *Emulator) {
 	var diff uint32
 	if emu.isZero() || (emu.isSign() != emu.isOverflow()) {
-		diff = uint32(emu.getCode8(1))
+		diff = uint32(emu.getSignCode8(1))
 	} else {
 		diff = 0
 	}
@@ -257,7 +272,7 @@ func jnc(emu *Emulator) {
 	if emu.isCarry() {
 		diff = 0
 	} else {
-		diff = uint32(emu.getCode8(1))
+		diff = uint32(emu.getSignCode8(1))
 	}
 	emu.eip += diff + 2
 }
@@ -267,7 +282,7 @@ func jnz(emu *Emulator) {
 	if emu.isZero() {
 		diff = 0
 	} else {
-		diff = uint32(emu.getCode8(1))
+		diff = uint32(emu.getSignCode8(1))
 	}
 	emu.eip += diff + 2
 }
@@ -277,7 +292,7 @@ func jns(emu *Emulator) {
 	if emu.isSign() {
 		diff = 0
 	} else {
-		diff = uint32(emu.getCode8(1))
+		diff = uint32(emu.getSignCode8(1))
 	}
 	emu.eip += diff + 2
 }
@@ -287,36 +302,7 @@ func jno(emu *Emulator) {
 	if emu.isOverflow() {
 		diff = 0
 	} else {
-		diff = uint32(emu.getCode8(1))
+		diff = uint32(emu.getSignCode8(1))
 	}
 	emu.eip += diff + 2
 }
-
-/*
-func define(flag string) func(*Emulator) {
-	return func(emu *Emulator) {
-		var diff uint32
-		isFlag := func() func() bool {
-			switch flag {
-			case "Carry":
-				return emu.isCarry
-			case "Sign":
-				return emu.isSign
-			case "Zero":
-				return emu.isZero
-			case "Overflow":
-				return emu.isOverflow
-			default:
-				return nil
-			}
-		}()
-
-		if isFlag() {
-			diff = uint32(emu.getCode8(1))
-		} else {
-			diff = 0
-		}
-		emu.eip += diff + 2
-	}
-}
-*/

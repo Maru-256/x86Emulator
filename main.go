@@ -15,8 +15,8 @@ func main() {
 	if len(os.Args) != 2 {
 		log.Fatalln("usage: px86 filename")
 	}
-
-	emu := NewEmulator(memorySize, 0x7C00, 0x7C00)
+	const org = 0x7C00
+	emu := NewEmulator(memorySize, org, org)
 	b, err := ioutil.ReadFile(os.Args[1])
 	if err != nil {
 		log.Fatalln(err)
