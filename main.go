@@ -26,7 +26,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	if err := copyByIndex(emu.memory, b, int(emu.eip)); err != nil {
+	if err := copyByIndex(emu.memory, b, emu.eip); err != nil {
 		log.Fatalln(err)
 	}
 
@@ -50,17 +50,13 @@ func main() {
 	emu.dumpRegisters()
 }
 
-func copyByIndex(dst, src []uint8, index int) error {
-	for i := 0; i < len(src); i++ {
-		if index+len(src) > len(dst) {
+func copyByIndex(dst, src []uint8, index uint32) error {
+	for i := uint32(0); i < uint32(len(src)); i++ {
+		if index+uint32(len(src)) > uint32(len(dst)) {
 			return fmt.Errorf("out of index")
 		}
 		dst[index+i] = src[i]
 	}
 
 	return nil
-}
-
-func optRemoveAt(s string, index int) {
-
 }
