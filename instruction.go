@@ -15,8 +15,11 @@ func init() {
 	instructions[0x01] = addRm32R32
 
 	instructions[0x3B] = cmpR32Rm32
+	instructions[0x3C] = cmpAlImm8
+	instructions[0x3D] = cmpEaxImm32
 
 	for i := 0; i < 8; i++ {
+		instructions[0x40+i] = incR32
 		instructions[0x50+i] = pushR32
 		instructions[0x58+i] = popR32
 	}
@@ -36,10 +39,13 @@ func init() {
 	instructions[0x7E] = jle
 
 	instructions[0x83] = code83
+	instructions[0x88] = movRm8R8
 	instructions[0x89] = movRm32R32
+	instructions[0x8A] = movR8Rm8
 	instructions[0x8B] = movR32Rm32
 
 	for i := 0; i < 8; i++ {
+		instructions[0xB0+i] = movR8Imm8
 		instructions[0xB8+i] = movR32Imm32
 	}
 
@@ -50,6 +56,8 @@ func init() {
 	instructions[0xE8] = callRel32
 	instructions[0xE9] = nearJump
 	instructions[0xEB] = shortJump
+	instructions[0xEC] = inAlDx
+	instructions[0xEE] = outDxAl
 	instructions[0xFF] = codeFF
 }
 
@@ -61,6 +69,26 @@ func shortJump(emu *Emulator) {
 func nearJump(emu *Emulator) {
 	diff := emu.getSignCode32(1)
 	emu.eip += uint32(diff + 5)
+}
+
+func movR8Imm8(emu *Emulator) {
+	reg := emu.getCode8(0) - 0xB0
+	emu.setRegister8(reg, emu.getCode8(1))
+	emu.eip += 2
+}
+
+func movRm8R8(emu *Emulator) {
+	emu.eip++
+	modrm := ParseModRM(emu)
+	r8 := emu.getRegister8(modrm.regIndex)
+	emu.setRm8(modrm, r8)
+}
+
+func movR8Rm8(emu *Emulator) {
+	emu.eip++
+	modrm := ParseModRM(emu)
+	rm8 := emu.getRm8(modrm)
+	emu.setRegister8(modrm.regIndex, rm8)
 }
 
 func movR32Imm32(emu *Emulator) {
@@ -145,6 +173,12 @@ func codeFF(emu *Emulator) {
 	}
 }
 
+func incR32(emu *Emulator) {
+	reg := emu.getCode8(0) - 0x40
+	emu.setRegister32(reg, emu.getRegister32(reg)+1)
+	emu.eip++
+}
+
 func incRm32(emu *Emulator, modrm *ModRM) {
 	val := emu.getRm32(modrm)
 	emu.setRm32(modrm, val+1)
@@ -190,6 +224,20 @@ func leave(emu *Emulator) {
 	emu.setRegister32(uint8(ESP), ebp)
 	emu.setRegister32(uint8(EBP), emu.pop32())
 	emu.eip++
+}
+
+func cmpAlImm8(emu *Emulator) {
+	al := emu.getRegister8(AL)
+	val := emu.getCode8(1)
+	emu.updateEflagsSub(uint32(al), uint32(val))
+	emu.eip += 2
+}
+
+func cmpEaxImm32(emu *Emulator) {
+	eax := emu.getRegister32(EAX)
+	val := emu.getCode32(1)
+	emu.updateEflagsSub(eax, val)
+	emu.eip += 5
 }
 
 func cmpR32Rm32(emu *Emulator) {
@@ -305,4 +353,18 @@ func jno(emu *Emulator) {
 		diff = uint32(emu.getSignCode8(1))
 	}
 	emu.eip += diff + 2
+}
+
+func inAlDx(emu *Emulator) {
+	address := uint16(emu.getRegister32(EDX))
+	val := ioIn8(address)
+	emu.setRegister8(AL, val)
+	emu.eip++
+}
+
+func outDxAl(emu *Emulator) {
+	address := uint16(emu.getRegister32(EDX))
+	val := emu.getRegister8(AL)
+	ioOut8(address, val)
+	emu.eip++
 }

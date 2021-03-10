@@ -16,6 +16,14 @@ const (
 	ESI
 	EDI
 	registersCount
+	AL = EAX
+	CL = ECX
+	DL = EDX
+	BL = EBX
+	AH = AL + 4
+	CH = CL + 4
+	DH = DL + 4
+	BH = BL + 4
 )
 
 const (
@@ -71,12 +79,30 @@ func (emu *Emulator) dumpRegisters() {
 	fmt.Printf("EIP = %08x\n", emu.eip)
 }
 
+func (emu *Emulator) getRm8(modrm *ModRM) uint8 {
+	if modrm.mod == 3 {
+		return emu.getRegister8(modrm.rm)
+	} else {
+		address := emu.calcMemoryAddress(modrm)
+		return emu.getMemory8(address)
+	}
+}
+
 func (emu *Emulator) getRm32(modrm *ModRM) uint32 {
 	if modrm.mod == 3 {
 		return emu.getRegister32(modrm.rm)
 	} else {
 		address := emu.calcMemoryAddress(modrm)
 		return emu.getMemory32(address)
+	}
+}
+
+func (emu *Emulator) setRm8(modrm *ModRM, val uint8) {
+	if modrm.mod == 3 {
+		emu.setRegister8(modrm.rm, val)
+	} else {
+		address := emu.calcMemoryAddress(modrm)
+		emu.setMemory8(address, val)
 	}
 }
 
@@ -132,6 +158,22 @@ func (emu *Emulator) calcMemoryAddress(modrm *ModRM) uint32 {
 		os.Exit(0)
 	}
 	return 0
+}
+
+func (emu *Emulator) getRegister8(index uint8) uint8 {
+	if index < 4 {
+		return uint8(emu.registers[index])
+	} else {
+		return uint8(emu.registers[index-4] >> 8)
+	}
+}
+
+func (emu *Emulator) setRegister8(index uint8, val uint8) {
+	if index < 4 {
+		emu.registers[index] = emu.registers[index]&0xffffff00 | uint32(val)
+	} else {
+		emu.registers[index] = emu.registers[index-4]&0xffff00ff | uint32(val)<<8
+	}
 }
 
 func (emu *Emulator) getRegister32(index uint8) uint32 {

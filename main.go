@@ -1,10 +1,10 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"os"
 )
 
 const (
@@ -12,12 +12,17 @@ const (
 )
 
 func main() {
-	if len(os.Args) != 2 {
-		log.Fatalln("usage: px86 filename")
+	var quiet bool
+	flag.BoolVar(&quiet, "q", false, "do not output current EIP and opcode")
+	flag.Parse()
+
+	if len(flag.Args()) < 1 {
+		log.Fatalln("usage: px86 [-q] filename")
 	}
+
 	const org = 0x7C00
 	emu := NewEmulator(memorySize, org, org)
-	b, err := ioutil.ReadFile(os.Args[1])
+	b, err := ioutil.ReadFile(flag.Arg(0))
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -27,7 +32,9 @@ func main() {
 
 	for emu.eip < memorySize {
 		code := emu.getCode8(0)
-		fmt.Printf("EIP = %X, Code = %02X\n", emu.eip, code)
+		if !quiet {
+			fmt.Printf("EIP = %X, Code = %02X\n", emu.eip, code)
+		}
 
 		if instructions[code] == nil {
 			log.Printf("Not Implemented: %x\n", code)
@@ -52,4 +59,8 @@ func copyByIndex(dst, src []uint8, index int) error {
 	}
 
 	return nil
+}
+
+func optRemoveAt(s string, index int) {
+
 }
