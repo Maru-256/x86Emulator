@@ -16,6 +16,7 @@ const (
 	ESI
 	EDI
 	registersCount
+
 	AL = EAX
 	CL = ECX
 	DL = EDX
@@ -27,10 +28,10 @@ const (
 )
 
 const (
-	CarryFlag    uint32 = 1
-	ZeroFlag     uint32 = 1 << 6
-	SignFlag     uint32 = 1 << 7
-	OverflowFlag uint32 = 1 << 11
+	carryFlag    uint32 = 1
+	zeroFlag     uint32 = 1 << 6
+	signFlag     uint32 = 1 << 7
+	overflowFlag uint32 = 1 << 11
 )
 
 var (
@@ -163,16 +164,15 @@ func (emu *Emulator) calcMemoryAddress(modrm *ModRM) uint32 {
 func (emu *Emulator) getRegister8(index uint8) uint8 {
 	if index < 4 {
 		return uint8(emu.registers[index])
-	} else {
-		return uint8(emu.registers[index-4] >> 8)
 	}
+	return uint8(emu.registers[index-4] >> 8)
 }
 
 func (emu *Emulator) setRegister8(index uint8, val uint8) {
 	if index < 4 {
 		emu.registers[index] = emu.registers[index]&0xffffff00 | uint32(val)
 	} else {
-		emu.registers[index] = emu.registers[index-4]&0xffff00ff | uint32(val)<<8
+		emu.registers[index-4] = emu.registers[index-4]&0xffff00ff | uint32(val)<<8
 	}
 }
 
@@ -211,48 +211,48 @@ func (emu *Emulator) updateEflagsSub(v1 uint32, v2 uint32) {
 
 func (emu *Emulator) setCarry(isCarry bool) {
 	if isCarry {
-		emu.eflags |= CarryFlag
+		emu.eflags |= carryFlag
 	} else {
-		emu.eflags &= ^CarryFlag
+		emu.eflags &= ^carryFlag
 	}
 }
 
 func (emu *Emulator) setZero(isZero bool) {
 	if isZero {
-		emu.eflags |= ZeroFlag
+		emu.eflags |= zeroFlag
 	} else {
-		emu.eflags &= ^ZeroFlag
+		emu.eflags &= ^zeroFlag
 	}
 }
 
 func (emu *Emulator) setSign(isSign bool) {
 	if isSign {
-		emu.eflags |= SignFlag
+		emu.eflags |= signFlag
 	} else {
-		emu.eflags &= ^SignFlag
+		emu.eflags &= ^signFlag
 	}
 }
 
 func (emu *Emulator) setOverflow(isOverflow bool) {
 	if isOverflow {
-		emu.eflags |= OverflowFlag
+		emu.eflags |= overflowFlag
 	} else {
-		emu.eflags &= ^OverflowFlag
+		emu.eflags &= ^overflowFlag
 	}
 }
 
 func (emu *Emulator) isCarry() bool {
-	return emu.eflags&CarryFlag != 0
+	return emu.eflags&carryFlag != 0
 }
 
 func (emu *Emulator) isZero() bool {
-	return emu.eflags&ZeroFlag != 0
+	return emu.eflags&zeroFlag != 0
 }
 
 func (emu *Emulator) isSign() bool {
-	return emu.eflags&SignFlag != 0
+	return emu.eflags&signFlag != 0
 }
 
 func (emu *Emulator) isOverflow() bool {
-	return emu.eflags&OverflowFlag != 0
+	return emu.eflags&overflowFlag != 0
 }

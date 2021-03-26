@@ -9,6 +9,7 @@ import (
 
 const (
 	memorySize = 1 << 20
+	org        = 0x7C00
 )
 
 func main() {
@@ -20,7 +21,6 @@ func main() {
 		log.Fatalln("usage: px86 [-q] filename")
 	}
 
-	const org = 0x7C00
 	emu := NewEmulator(memorySize, org, org)
 	b, err := ioutil.ReadFile(flag.Arg(0))
 	if err != nil {
@@ -41,6 +41,7 @@ func main() {
 			break
 		}
 		instructions[code](emu)
+
 		if emu.eip == 0x00 {
 			log.Println("end of program")
 			break
@@ -51,10 +52,11 @@ func main() {
 }
 
 func copyByIndex(dst, src []uint8, index uint32) error {
+	if index+uint32(len(src)) > uint32(len(dst)) {
+		return fmt.Errorf("out of index")
+	}
+
 	for i := uint32(0); i < uint32(len(src)); i++ {
-		if index+uint32(len(src)) > uint32(len(dst)) {
-			return fmt.Errorf("out of index")
-		}
 		dst[index+i] = src[i]
 	}
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 )
@@ -52,6 +53,7 @@ func init() {
 	instructions[0xC3] = ret
 	instructions[0xC7] = movRm32Imm32
 	instructions[0xC9] = leave
+	instructions[0xCD] = swi
 
 	instructions[0xE8] = callRel32
 	instructions[0xE9] = nearJump
@@ -367,4 +369,15 @@ func outDxAl(emu *Emulator) {
 	val := emu.getRegister8(AL)
 	ioOut8(address, val)
 	emu.eip++
+}
+
+func swi(emu *Emulator) {
+	intIndex := emu.getCode8(1)
+	emu.eip += 2
+	switch intIndex {
+	case 0x10:
+		biosVideo(emu)
+	default:
+		fmt.Printf("unknown interrupt: 0x%02x\n", intIndex)
+	}
 }
